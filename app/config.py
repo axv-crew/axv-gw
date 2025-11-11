@@ -4,6 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # --- HMAC settings ---
+    AXV_HMAC_SECRET: str = ""
+    AXV_HMAC_DRIFT_S: int = 300
     """Application settings loaded from environment."""
 
     model_config = SettingsConfigDict(env_prefix="AXV_GW_")

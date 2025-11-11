@@ -119,3 +119,20 @@ if __name__ == "__main__":
         log_level=settings.log_level,
         reload=False,
     )
+
+# --- /status (Aster patch) ---
+import time, os
+STARTED_AT = globals().get("STARTED_AT", time.time())
+
+@app.get("/status")
+def status():
+    return {
+        "now": int(time.time()),
+        "ok": True,
+        "service": getattr(settings, "service", "axv-gw"),
+        "version": getattr(settings, "version", os.getenv("GATEWAY_VERSION", "0.1.0")),
+        "uptime_s": int(time.time() - STARTED_AT),
+    }
+# --- end patch ---
+from app.routers.hooks import router as hooks_router
+app.include_router(hooks_router)
