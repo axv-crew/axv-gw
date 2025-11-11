@@ -1,0 +1,35 @@
+{
+  "updatedAt": "2025-11-11T16:05:00Z",
+  "services": [
+    {
+      "id": "k8s-cluster",
+      "label": "Kubernetes Cluster",
+      "state": "ok",
+      "note": "All nodes healthy"
+    },
+    {
+      "id": "n8n-automation",
+      "label": "n8n Automation",
+      "state": "ok",
+      "note": "Running at n8n.axv.life"
+    },
+    {
+      "id": "axv-pulse",
+      "label": "AXV Pulse",
+      "state": "ok",
+      "note": "Timeline system operational"
+    },
+    {
+      "id": "axv-taskboard",
+      "label": "AXV Task Board",
+      "state": "warn",
+      "note": "Scheduled maintenance planned"
+    },
+    {
+      "id": "cli-brat",
+      "label": "CLI-brat Agent",
+      "state": "ok",
+      "note": "Autonomous agent active"
+    }
+  ]
+}

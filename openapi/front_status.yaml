@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: AXV Gateway API
+  description: Status API gateway for axv.life frontend
+  version: 0.1.0
+  contact:
+    name: AXV Crew
+    url: https://axv.systems
+
+servers:
+  - url: https://gw.axv.life
+    description: Production
+  - url: http://localhost:8000
+    description: Local development
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      description: Simple health check endpoint
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /front/status:
+    get:
+      summary: Get frontend status
+      description: Returns current status of AXV services
+      operationId: getFrontStatus
+      tags:
+        - frontend
+      responses:
+        "200":
+          description: Current service status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FrontStatusV1"
+        "500":
+          description: Internal server error
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Exports metrics in Prometheus format
+      operationId: getMetrics
+      tags:
+        - observability
+      responses:
+        "200":
+          description: Metrics in Prometheus text format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    ServiceState:
+      type: string
+      enum:
+        - ok
+        - warn
+        - down
+        - unknown
+      description: Current state of a service
+
+    ServiceStatus:
+      type: object
+      required:
+        - id
+        - label
+        - state
+      properties:
+        id:
+          type: string
+          description: Unique service identifier
+          example: k8s-cluster
+        label:
+          type: string
+          description: Human-readable service label
+          example: Kubernetes Cluster
+        state:
+          $ref: "#/components/schemas/ServiceState"
+        note:
+          type: string
+          description: Optional status note
+          example: All nodes healthy
+
+    FrontStatusV1:
+      type: object
+      required:
+        - updatedAt
+        - services
+      properties:
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of last status update (ISO 8601)
+          example: "2025-11-11T16:05:00Z"
+        services:
+          type: array
+          description: List of service statuses
+          items:
+            $ref: "#/components/schemas/ServiceStatus"
