@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  gw:
+    build: .
+    image: axv/gw:0.1.0
+    container_name: axv_gw
+    restart: unless-stopped
+    # trzymamy port tylko na loopback, by nie ruszać edge/SSL
+    ports:
+      - "127.0.0.1:8000:8000"
