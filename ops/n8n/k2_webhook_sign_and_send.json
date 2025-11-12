@@ -1,0 +1,146 @@
+{
+  "name": "K1.6 - AXV Gateway HMAC (via helper)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b1abbc85-5e9d-4fec-9418-fcad22be9141",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        96,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "ts",
+              "stringValue": "={{ Math.floor(Date.now()/1000).toString() }}"
+            },
+            {
+              "name": "payload",
+              "type": "objectValue",
+              "objectValue": "={{ { source: \"n8n\", ping: true } }}"
+            }
+          ]
+        },
+        "include": "none",
+        "options": {}
+      },
+      "id": "aeda8714-7b24-43cc-94ae-684eacec5774",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        320,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.2:8000/internal/hmac-sign",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { ts: $json.ts, body: JSON.stringify($json.payload) } }}",
+        "options": {}
+      },
+      "id": "b0b31232-384c-485f-a309-3cfc68ed379d",
+      "name": "Get HMAC Signature",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        528,
+        352
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GlIeNafr1qPm1Vsu",
+          "name": "AXV Local Signer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gw.axv.life/hooks/ping",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-AXV-Timestamp",
+              "value": "={{ $node[\"Prepare Data\"].json.ts }}"
+            },
+            {
+              "name": "X-AXV-Signature",
+              "value": "={{ $node[\"Get HMAC Signature\"].json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $node[\"Prepare Data\"].json.payload }}",
+        "options": {}
+      },
+      "id": "7745dcb7-6fe8-4e62-adbd-d48b3fcf2d10",
+      "name": "Send to Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        752,
+        352
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Get HMAC Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get HMAC Signature": {
+      "main": [
+        [
+          {
+            "node": "Send to Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "888bc558-f4d9-4e39-b97b-713d422b5430",
+  "meta": {
+    "instanceId": "895500a397a3e801b63ba89a7767be9b5fd9a0d0cae8bd221476442daa439321"
+  },
+  "id": "IV578c2Tge91iA14",
+  "tags": []
+}
