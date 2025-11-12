@@ -1,4 +1,5 @@
 import logging, sys
+from axv_gw.middleware.hmac_ts import HMACTimeSkewMiddleware
 from axv_gw.middleware.rate_limit import RateLimitMiddleware
 logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 import os, time
@@ -14,6 +15,7 @@ app.state.started_at = time.time()
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(HMACTimeSkewMiddleware)
 
 @app.get("/healthz")
 def healthz():
