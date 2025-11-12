@@ -2,6 +2,7 @@ import os, time
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from axv_gw.metrics import hmac_bad_ts
 
 class HMACTimeSkewMiddleware(BaseHTTPMiddleware):
     """
@@ -29,6 +30,7 @@ class HMACTimeSkewMiddleware(BaseHTTPMiddleware):
 
         now = int(time.time())
         if ts is None or abs(now - ts) > self.skew_s:
+            hmac_bad_ts.labels(path=path).inc()
             return JSONResponse({"ok": False, "error": "bad timestamp"}, status_code=401)
 
         return await call_next(request)

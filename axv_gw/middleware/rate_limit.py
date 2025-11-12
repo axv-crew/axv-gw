@@ -6,6 +6,7 @@ from typing import Deque, Dict, Tuple
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from axv_gw.metrics import rate_limit_dropped
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
@@ -49,6 +50,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             if len(dq) >= limit:
                 retry_after = max(int(dq[0] + self.window - now) + 1, 1)
+                rate_limit_dropped.labels(path=path).inc()
                 return JSONResponse(
                     {"ok": False, "error": "rate_limited", "retry_after_s": retry_after},
                     status_code=429,

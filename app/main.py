@@ -1,4 +1,5 @@
 import logging, sys
+from axv_gw.middleware.hooks_metrics import HookMetricsMiddleware
 from axv_gw.middleware.size_guard import RequestSizeGuardMiddleware
 from axv_gw.middleware.hmac_ts import HMACTimeSkewMiddleware
 from axv_gw.middleware.rate_limit import RateLimitMiddleware
@@ -48,3 +49,4 @@ app.include_router(internal.router)
 @app.head("/metrics")
 def metrics_head():
     return Response(status_code=200, media_type=CONTENT_TYPE_LATEST)
+app.add_middleware(HookMetricsMiddleware)
