@@ -4,6 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # --- internal signer ---
+    INTERNAL_SIGNER_TOKEN: str = ""
     # --- HMAC settings ---
     AXV_HMAC_SECRET: str = ""
     AXV_HMAC_DRIFT_S: int = 300
