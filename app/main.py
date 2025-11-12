@@ -1,4 +1,5 @@
 """FastAPI application factory and configuration."""
+from app.routers import internal
 
 import json
 import logging
@@ -72,6 +73,8 @@ def create_app() -> FastAPI:
     setup_logging()
 
     app = FastAPI(
+app.include_router(internal.router)
+
         title="AXV Gateway",
         description="Status API gateway for axv.life frontend",
         version="0.1.0",
