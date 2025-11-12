@@ -1,4 +1,5 @@
 import logging, sys
+from axv_gw.middleware.rate_limit import RateLimitMiddleware
 logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 import os, time
 from fastapi import FastAPI, Response, Request
@@ -6,7 +7,6 @@ from app.config import settings
 from app.routers import hooks, internal
 from app.middleware import RequestLoggingMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from axv_gw.middleware.rate_limit import RateLimitMiddleware
 
 app = FastAPI(title="AXV Gateway", version=os.getenv("GATEWAY_VERSION", "dev"))
 app.state.started_at = time.time()
@@ -37,9 +37,10 @@ def metrics():
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 # Routers
+app.include_router(hooks.router)
+app.include_router(internal.router)
 
 # HEAD /metrics (bez body; te same nagłówki co GET)
 @app.head("/metrics")
 def metrics_head():
     return Response(status_code=200, media_type=CONTENT_TYPE_LATEST)
-
