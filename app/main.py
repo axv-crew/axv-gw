@@ -7,18 +7,22 @@ logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 import os, time
 from fastapi import FastAPI, Response, Request
 from app.config import settings
-from app.routers import hooks, internal
+from app.routers import hooks, internal, front
 from app.middleware import RequestLoggingMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 app = FastAPI(title="AXV Gateway", version=os.getenv("GATEWAY_VERSION", "dev"))
 app.state.started_at = time.time()
 
-# Add request logging middleware
+
+# --- middleware order (outermost → innermost) ---
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(HMACTimeSkewMiddleware)
 app.add_middleware(RequestSizeGuardMiddleware)
+app.add_middleware(HookMetricsMiddleware)
+
+# Add request logging middleware
 
 @app.get("/healthz")
 def healthz():
@@ -44,9 +48,13 @@ def metrics():
 # Routers
 app.include_router(hooks.router)
 app.include_router(internal.router)
+app.include_router(front.router)
 
 # HEAD /metrics (bez body; te same nagłówki co GET)
 @app.head("/metrics")
 def metrics_head():
     return Response(status_code=200, media_type=CONTENT_TYPE_LATEST)
-app.add_middleware(HookMetricsMiddleware)
+
+def create_app():
+    """Factory for tests — returns the already-configured FastAPI app."""
+    return app

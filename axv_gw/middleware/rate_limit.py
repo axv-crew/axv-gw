@@ -32,7 +32,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             first = xff.split(",")[0].strip()
             if first:
                 return first
-        return request.client.host if request.client else "unknown"
+        return request.headers.get('X-Forwarded-For', request.client.host if request.client else '') if request.client else "unknown"
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
