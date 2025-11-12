@@ -1,44 +1,48 @@
-import os, hmac, hashlib, time
 from fastapi import Request, HTTPException
+from starlette.status import HTTP_401_UNAUTHORIZED
+import hmac, hashlib, time, json
 from app.config import settings
 
 async def hmac_verify(request: Request):
     ts = request.headers.get("X-AXV-Timestamp")
-    sig = request.headers.get("X-AXV-Signature", "")
-    if not ts or not sig.startswith("sha256="):
-        raise HTTPException(status_code=401, detail="missing headers")
+    sig_hdr = request.headers.get("X-AXV-Signature", "")
+
+    if not ts or not sig_hdr.startswith("sha256="):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="missing signature")
 
     try:
-        ts_int = int(ts)
+        ts_i = int(ts)
     except Exception:
-        raise HTTPException(status_code=401, detail="bad timestamp")
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="bad timestamp")
 
-    now = int(time.time())
-    drift = (
-        getattr(settings, "AXV_HMAC_DRIFT_S", None)
-        or getattr(settings, "HMAC_DRIFT_S", None)
-        or 300
-    )
-    if abs(now - ts_int) > int(drift):
-        raise HTTPException(status_code=401, detail="timestamp drift")
+    drift = int(getattr(settings, "AXV_HMAC_DRIFT_S", 300))
+    if abs(int(time.time()) - ts_i) > drift:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="timestamp drift")
 
-    # ❶ Najpierw bez-prefiksowe pole (gdy model ma env_prefix="AXV_")
-    # ❷ Następnie próba pola z prefiksem (gdy ktoś tak zdefiniował w Settings)
-    # ❸ Potem ENV (najpewniejsze w kontenerze)
-    secret = (
-        getattr(settings, "HMAC_SECRET", "")
-        or getattr(settings, "AXV_HMAC_SECRET", "")
-        or os.getenv("AXV_HMAC_SECRET", "")
-        or os.getenv("HMAC_SECRET", "")
-    )
-    if not secret:
-        raise HTTPException(status_code=401, detail="no secret configured")
+    body = await request.body()
+    # re-inject body for downstream
+    async def _receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+    request._receive = _receive
 
-    body = await request.body()  # dokładny bajtowy payload
-    msg = f"{ts_int}.".encode() + body
-    expected = hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()
-    provided = sig.split("=", 1)[1]
+    provided = sig_hdr.split("=", 1)[1]
+    secret = (settings.AXV_HMAC_SECRET or "").encode("utf-8")
+    raw = body.decode("utf-8")
 
-    if not hmac.compare_digest(expected, provided):
-        raise HTTPException(status_code=401, detail="bad signature")
-    # ok: request przechodzi
+    def calc(payload: str) -> str:
+        msg = f"{ts}.{payload}".encode("utf-8")
+        return hmac.new(secret, msg, hashlib.sha256).hexdigest()
+
+    # 1) spróbuj dokładnie tak, jak przyszło (RAW)
+    if hmac.compare_digest(provided, calc(raw)):
+        return True
+
+    # 2) jeśli to JSON, policz na postaci kanonicznej (minified, stała separacja)
+    try:
+        canon = json.dumps(json.loads(raw), separators=(",", ":"), ensure_ascii=False)
+        if hmac.compare_digest(provided, calc(canon)):
+            return True
+    except Exception:
+        pass
+
+    raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="bad signature")
