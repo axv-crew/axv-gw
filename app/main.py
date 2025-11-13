@@ -1,4 +1,15 @@
 from fastapi import FastAPI
+
+from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST
+
+_BUILD_GAUGE = None
+def _ensure_build_metric():
+    global _BUILD_GAUGE
+    if _BUILD_GAUGE is None:
+        g = _ensure_build_metric()
+        g.labels(version=str(os.getenv("AXV_GW_VERSION","dev")), name="axv-gw").set(1)
+        _BUILD_GAUGE = g
+
 from app.middleware import RequestLoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers import front, hooks, internal
@@ -40,8 +51,7 @@ def create_app():
 
     # 4) /metrics (musi zawierać axv_gw albo python)
     if PROM:
-        g = Gauge("axv_gw_build_info", "Build info", ["version","name"])
-        g.labels(version=os.getenv("GATEWAY_VERSION","0.1.12"), name="axv-gw").set(1)
+    _ensure_build_metric()
 
         @app.get("/metrics")
         def metrics():
