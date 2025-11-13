@@ -1,46 +1,59 @@
-import os
-import time
 
-from prometheus_client import Counter
+import time, asyncio, os
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-# Prometheus counter (kompatybilny z wcześniejszą nazwą):
-rl_dropped = Counter(
-    "gw_rate_limit_dropped_total",
-    "Requests dropped by rate limiter",
-    ["path"],
-)
+try:
+    # opcjonalna metryka Prometheus
+    from prometheus_client import Counter
+    gw_rate_limit_dropped_total = Counter(
+        "gw_rate_limit_dropped_total",
+        "Requests dropped by rate limiter",
+        ["path"]
+    )
+except Exception:
+    gw_rate_limit_dropped_total = None
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """
-    Prosty RL: okno 1s, limit z ENV:
-      - RATE_LIMIT_HOOKS (dla ścieżek /hooks/*) domyślnie 5
-      - RATE_LIMIT_DEFAULT (dla reszty) domyślnie 60
-    Klucz: (ip, path, floor(now)).
-    """
-    _buckets: dict[tuple[str,str,int], int] = {}
+    def __init__(self, app, default_limit=60, window_s=60, paths=None, key_header=""):
+        super().__init__(app)
+        self.default_limit = int(default_limit)
+        self.window_s = int(window_s)
+        self.paths = paths or {}
+        self.key_header = key_header or ""
+        self._buckets = {}  # (key, path) -> {"start":ts,"count":n}
+        self._lock = asyncio.Lock()
 
-    def _limit_for_path(self, path: str) -> int:
-        if path.startswith("/hooks/"):
-            return int(os.getenv("RATE_LIMIT_HOOKS", "5"))
-        return int(os.getenv("RATE_LIMIT_DEFAULT", "60"))
+    async def dispatch(self, request, call_next):
+        limit = int(self.paths.get(request.url.path, self.default_limit))
+        if limit <= 0:
+            return await call_next(request)
 
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        limit = self._limit_for_path(path)
         now = int(time.time())
-        ip = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
-        if not ip:
-            ip = request.client.host if request.client else ""
+        key = (request.headers.get(self.key_header).strip() if self.key_header else (request.client.host if request.client else "0.0.0.0"))
+        k = (key, request.url.path)
 
-        key = (ip, path, now)
-        cnt = self._buckets.get(key, 0) + 1
-        self._buckets[key] = cnt
+        async with self._lock:
+            b = self._buckets.get(k)
+            if not b or now - b["start"] >= self.window_s:
+                b = {"start": now, "count": 0}
+            b["count"] += 1
+            self._buckets[k] = b
 
-        if cnt > limit:
-            rl_dropped.labels(path=path).inc()
-            return JSONResponse({"detail": "rate limited"}, status_code=429)
+            if b["count"] > limit:
+                if gw_rate_limit_dropped_total:
+                    try: gw_rate_limit_dropped_total.labels(path=request.url.path).inc()
+                    except Exception: pass
+                retry = max(1, self.window_s - (now - b["start"]))
+                return JSONResponse({"detail":"rate limit exceeded"}, status_code=429, headers={"Retry-After": str(retry)})
 
-        return await call_next(request)
+        # przepuszczamy dalej — nie tworzymy nowej odpowiedzi, nie dotykamy body
+        resp = await call_next(request)
+        try:
+            remaining = max(0, limit - b["count"])
+            # nagłówki tylko jeśli nie nadpisane wyżej w stosie
+            resp.headers.setdefault("X-RateLimit-Limit", str(limit))
+            resp.headers.setdefault("X-RateLimit-Remaining", str(remaining))
+        except Exception:
+            pass
+        return resp
