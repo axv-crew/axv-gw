@@ -83,3 +83,7 @@ Thumbs.db
 
 # Project specific
 *.log
+
+# ignore backups
+app/main.py.bak.*
+app/main.py.BAK.*
