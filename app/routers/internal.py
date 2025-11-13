@@ -1,8 +1,11 @@
+import hashlib
+import hmac
+import json
+import os
+from typing import Any
+
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
-from typing import Any, Optional
-import hmac, hashlib, json
-import os
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
@@ -14,7 +17,7 @@ class HMACSignResponse(BaseModel):
     signature: str
 
 @router.post("/hmac-sign", response_model=HMACSignResponse)
-async def hmac_sign(req: HMACSignRequest, x_axv_signer: Optional[str] = Header(None)):
+async def hmac_sign(req: HMACSignRequest, x_axv_signer: str | None = Header(None)):
     # prosty guard na localhost-only use case (opcjonalny)
     expect = (os.getenv("INTERNAL_SIGNER_TOKEN") or "").strip()
     if expect and (x_axv_signer or "") != expect:
@@ -27,6 +30,6 @@ async def hmac_sign(req: HMACSignRequest, x_axv_signer: Optional[str] = Header(N
     else:
         body_s = json.dumps(req.body, separators=(",", ":"), ensure_ascii=False)
 
-    msg = f"{req.ts}.{body_s}".encode("utf-8")
+    msg = f"{req.ts}.{body_s}".encode()
     sig = hmac.new(secret, msg, hashlib.sha256).hexdigest()
     return HMACSignResponse(signature=f"sha256={sig}")

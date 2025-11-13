@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+
 from app.security import hmac_verify
 
 router = APIRouter(prefix="/hooks", dependencies=[Depends(hmac_verify)])

@@ -1,6 +1,12 @@
-from fastapi import Request, HTTPException
+import hashlib
+import hmac
+import json
+import os
+import time
+
+from fastapi import HTTPException, Request
 from starlette.status import HTTP_401_UNAUTHORIZED
-import hmac, hashlib, time, json, os, os
+
 
 def _canonical_payload(ct: str, body_bytes: bytes) -> str:
     if ct and 'application/json' in ct.lower():
