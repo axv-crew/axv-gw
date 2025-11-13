@@ -115,7 +115,11 @@ def create_app() -> FastAPI:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     # HMAC
-    SECRET = (getattr(settings, "hmac_secret", None) or os.getenv("AXV_HMAC_SECRET") or "dev").encode("utf-8")
+    SECRET = (
+        os.getenv("AXV_HMAC_SECRET")
+        or getattr(settings, "hmac_secret", None)
+        or "dev"
+    ).encode("utf-8")
 
     @app.post("/hooks/ping")
     async def hooks_ping(request: Request):

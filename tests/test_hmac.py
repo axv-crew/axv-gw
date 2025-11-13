@@ -9,8 +9,9 @@ os.environ['INTERNAL_SIGNER_TOKEN'] = 'axv-local-signer-ONLY-THIS-HOST'
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import create_app
 
+app = create_app()
 client = TestClient(app)
 
 def sign(ts, body, secret='test123'):
