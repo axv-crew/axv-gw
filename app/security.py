@@ -1,50 +1,58 @@
-import hashlib
-import hmac
-import os
-
-from fastapi import HTTPException, Request
+from fastapi import Request, HTTPException
 from starlette.status import HTTP_401_UNAUTHORIZED
-
+import hmac, hashlib, time, json, os
 
 async def hmac_verify(request: Request):
     """
-    Dependency: weryfikacja HMAC
-    - Czyta nagłówki z aliasami:
+    HMAC verify (AXV):
       * Timestamp: X-AXV-Timestamp lub X-Signature-Timestamp
-      * Signature: X-AXV-Signature lub X-Signature
-    - Sekret i parametry z ENV:
-      * AXV_HMAC_SECRET  (wymagany do poprawnej weryfikacji)
-      * AXV_HMAC_DRIFT_S (opcjonalne; nieegzekwowane tu — robi to middleware TS)
+      * Signature: X-AXV-Signature (prefer) lub X-Signature
+      * Wiadomość: f"{ts}.{payload}"
+      * payload:
+          - dla application/json → json.loads → json.dumps(..., separators=(',', ':'), ensure_ascii=False)
+          - w innym wypadku → raw body (decode UTF-8)
     """
-    ts = request.headers.get("X-AXV-Timestamp") or request.headers.get(
-        "X-Signature-Timestamp"
-    )
+    # 1) pobierz nagłówki (oba warianty)
+    ts = request.headers.get("X-AXV-Timestamp") or request.headers.get("X-Signature-Timestamp")
     sig = request.headers.get("X-AXV-Signature") or request.headers.get("X-Signature")
-    if not ts or not sig:
-        raise HTTPException(HTTP_401_UNAUTHORIZED, "missing signature")
 
-    secret = (os.getenv("AXV_HMAC_SECRET") or "").encode()
-    if not secret:
-        # Brak sekretu = traktujemy jak złą konfigurację podpisu
-        raise HTTPException(HTTP_401_UNAUTHORIZED, "bad signature")
+    if not ts:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="bad timestamp")
+    if not sig:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="missing signature")
 
+    # 2) drift
     try:
-        body_bytes = await request.body()
-    except Exception:
-        body_bytes = b""
-    payload = (
-        body_bytes.decode()
-        if isinstance(body_bytes, (bytes, bytearray))
-        else str(body_bytes)
-    )
+        ts_i = int(ts)
+    except ValueError:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="bad timestamp")
 
-    # Liczymy "sha256=<hexdigest>" zgodnie z kontraktem
-    def calc(p: str) -> str:
-        msg = f"{ts}.{p}".encode()
-        return "sha256=" + hmac.new(secret, msg, hashlib.sha256).hexdigest()
+    now = int(time.time())
+    drift = int(os.getenv("AXV_HMAC_DRIFT_S", os.getenv("HMAC_MAX_SKEW_S", "300")))
+    if abs(now - ts_i) > drift:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="bad timestamp")
 
-    expected = calc(payload)
+    # 3) payload (kanonizacja jak w signerze)
+    raw = await request.body()
+    payload: str
+    ctype = (request.headers.get("Content-Type") or "").lower()
+    if "application/json" in ctype:
+        try:
+            obj = json.loads(raw.decode() if isinstance(raw, (bytes, bytearray)) else raw)
+            payload = json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+        except Exception:
+            # w razie niepoprawnego JSON – wróć do raw
+            payload = raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)
+    else:
+        payload = raw.decode() if isinstance(raw, (bytes, bytearray)) else str(raw)
 
-    # Stałe porównanie — akceptujemy wyłącznie format z prefiksem "sha256="
+    # 4) oblicz spodziewany podpis
+    secret = (os.getenv("AXV_HMAC_SECRET") or "").encode()
+    calc = hmac.new(secret, f"{ts}.{payload}".encode(), hashlib.sha256).hexdigest()
+    expected = f"sha256={calc}"
+
+    # 5) stała porównywarka
     if not hmac.compare_digest(sig, expected):
-        raise HTTPException(HTTP_401_UNAUTHORIZED, "bad signature")
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="bad signature")
+
+    return
