@@ -36,11 +36,15 @@ class HMACTimeSkewMiddleware(BaseHTTPMiddleware):
             ts_i = int(ts)
         except Exception:
             hmac_bad_ts.labels(path=path).inc()
-            return JSONResponse({"ok": False, "error": "bad timestamp"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "error": "bad timestamp"}, status_code=401
+            )
 
         now = int(time.time())
         if abs(now - ts_i) > self.max_skew:
             hmac_bad_ts.labels(path=path).inc()
-            return JSONResponse({"ok": False, "error": "bad timestamp"}, status_code=401)
+            return JSONResponse(
+                {"ok": False, "error": "bad timestamp"}, status_code=401
+            )
 
         return await call_next(request)

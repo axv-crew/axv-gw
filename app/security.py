@@ -1,10 +1,9 @@
-from fastapi import Request, HTTPException
-from starlette.status import HTTP_401_UNAUTHORIZED
-import hmac
 import hashlib
-import time
-import json
+import hmac
 import os
+
+from fastapi import HTTPException, Request
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 
 async def hmac_verify(request: Request):
@@ -17,7 +16,9 @@ async def hmac_verify(request: Request):
       * AXV_HMAC_SECRET  (wymagany do poprawnej weryfikacji)
       * AXV_HMAC_DRIFT_S (opcjonalne; nieegzekwowane tu — robi to middleware TS)
     """
-    ts = request.headers.get("X-AXV-Timestamp") or request.headers.get("X-Signature-Timestamp")
+    ts = request.headers.get("X-AXV-Timestamp") or request.headers.get(
+        "X-Signature-Timestamp"
+    )
     sig = request.headers.get("X-AXV-Signature") or request.headers.get("X-Signature")
     if not ts or not sig:
         raise HTTPException(HTTP_401_UNAUTHORIZED, "missing signature")
@@ -31,7 +32,11 @@ async def hmac_verify(request: Request):
         body_bytes = await request.body()
     except Exception:
         body_bytes = b""
-    payload = body_bytes.decode() if isinstance(body_bytes, (bytes, bytearray)) else str(body_bytes)
+    payload = (
+        body_bytes.decode()
+        if isinstance(body_bytes, (bytes, bytearray))
+        else str(body_bytes)
+    )
 
     # Liczymy "sha256=<hexdigest>" zgodnie z kontraktem
     def calc(p: str) -> str:

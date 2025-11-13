@@ -1,7 +1,9 @@
 import os
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
 
 class RequestSizeGuardMiddleware(BaseHTTPMiddleware):
     """
@@ -9,6 +11,7 @@ class RequestSizeGuardMiddleware(BaseHTTPMiddleware):
     ENV: MAX_BODY_KB (domyślnie 64). Używa nagłówka Content-Length.
     Gdy > limit -> 413 + JSON {"ok":false,"error":"body_too_large","limit_kb":N}.
     """
+
     def __init__(self, app, default_kb: int = 64):
         super().__init__(app)
         self.limit_kb = int(os.getenv("MAX_BODY_KB", str(default_kb)))

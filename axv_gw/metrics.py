@@ -27,5 +27,5 @@ hooks_ok = Counter(
 hooks_duration_ms = Histogram(
     "gw_hooks_duration_ms",
     "Duration of /hooks/* requests in milliseconds",
-    buckets=[5,10,25,50,100,250,500,1000,2500,5000]
+    buckets=[5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000],
 )

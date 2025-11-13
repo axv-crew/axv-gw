@@ -1,0 +1,28 @@
+....................                                                     [100%]
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                 Stmts   Miss  Cover   Missing
+------------------------------------------------------------------
+app/__init__.py                          1      0   100%
+app/config.py                           15      0   100%
+app/main.py                             39      3    92%   40-41, 66
+app/middleware.py                       28      3    89%   28-30
+app/routers/__init__.py                  0      0   100%
+app/routers/front.py                    73      7    90%   59-61, 153-156
+app/routers/healthz.py                  12     12     0%   3-28
+app/routers/hooks.py                     6      0   100%
+app/routers/internal.py                 25      7    72%   32-41
+app/schemas/__init__.py                  0      0   100%
+app/schemas/status.py                   17      0   100%
+app/security.py                         24      4    83%   24, 29, 33-34
+axv_gw/__init__.py                       0      0   100%
+axv_gw/metrics.py                        6      0   100%
+axv_gw/middleware/__init__.py            0      0   100%
+axv_gw/middleware/hmac_ts.py            27      4    85%   32, 37-39
+axv_gw/middleware/hooks_metrics.py      16      0   100%
+axv_gw/middleware/rate_limit.py         40      1    98%   70
+axv_gw/middleware/size_guard.py         19      2    89%   25-26
+------------------------------------------------------------------
+TOTAL                                  348     43    88%
+20 passed, 6 warnings in 1.36s

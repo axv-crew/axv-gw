@@ -16,25 +16,19 @@ router = APIRouter(prefix="/front")
 
 # Metrics
 status_requests = Counter(
-    "axv_gw_front_status_requests_total",
-    "Total front status requests",
-    ["status_code"]
+    "axv_gw_front_status_requests_total", "Total front status requests", ["status_code"]
 )
 status_fetch_duration = Histogram(
-    "axv_gw_front_status_fetch_seconds",
-    "Time to fetch status data"
+    "axv_gw_front_status_fetch_seconds", "Time to fetch status data"
 )
 cache_hits = Counter(
-    "axv_gw_front_status_cache_hits_total",
-    "Cache hits for status data"
+    "axv_gw_front_status_cache_hits_total", "Cache hits for status data"
 )
 cache_misses = Counter(
-    "axv_gw_front_status_cache_misses_total",
-    "Cache misses for status data"
+    "axv_gw_front_status_cache_misses_total", "Cache misses for status data"
 )
 degraded_mode = Gauge(
-    "axv_gw_front_status_degraded",
-    "Whether service is in degraded mode (1=yes, 0=no)"
+    "axv_gw_front_status_degraded", "Whether service is in degraded mode (1=yes, 0=no)"
 )
 
 # In-memory cache
@@ -61,16 +55,10 @@ def _load_stub() -> dict:
             return data
     except FileNotFoundError:
         logger.error(f"Stub file not found: {stub_path}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Stub file not found: {stub_path}"
-        )
+        raise HTTPException(status_code=500, detail=f"Stub file not found: {stub_path}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in stub file: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Invalid JSON in stub file: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Invalid JSON in stub file: {e}")
 
 
 def _is_cache_valid() -> bool:
@@ -97,10 +85,7 @@ def _apply_degraded_mode(data: dict) -> dict:
         Original data (modified in place is acceptable but we return for clarity)
     """
     services = data.get("services", [])
-    has_issues = any(
-        svc.get("state") != ServiceState.OK.value
-        for svc in services
-    )
+    has_issues = any(svc.get("state") != ServiceState.OK.value for svc in services)
 
     if has_issues:
         degraded_mode.set(1)
@@ -137,7 +122,7 @@ async def get_front_status() -> FrontStatusV1:
             cache_hits.inc()
             logger.debug("Cache hit - returning cached status")
             status_requests.labels(status_code="200").inc()
-            return FrontStatusV1(**_cache)
+            return FrontStatusV1(**(_cache or {}))
 
         cache_misses.inc()
         logger.debug("Cache miss - fetching fresh data")
@@ -154,7 +139,7 @@ async def get_front_status() -> FrontStatusV1:
             _apply_degraded_mode(data)
 
             # Validate and return
-            response = FrontStatusV1(**data)
+            response = FrontStatusV1(**(data or {}))
             status_requests.labels(status_code="200").inc()
             logger.info("Successfully loaded and cached status data")
 
@@ -168,7 +153,7 @@ async def get_front_status() -> FrontStatusV1:
                 logger.warning("Falling back to stale cache due to error")
                 degraded_mode.set(1)
                 status_requests.labels(status_code="200").inc()
-                return FrontStatusV1(**_cache)
+                return FrontStatusV1(**(_cache or {}))
 
             # No cache available - fail
             logger.error("No cache available for fallback")

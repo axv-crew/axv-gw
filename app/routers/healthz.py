@@ -11,8 +11,7 @@ router = APIRouter()
 
 # Metrics
 healthz_requests = Counter(
-    "axv_gw_healthz_requests_total",
-    "Total health check requests"
+    "axv_gw_healthz_requests_total", "Total health check requests"
 )
 
 

@@ -28,15 +28,8 @@ class FrontStatusV1(BaseModel):
     """Frontend status response contract v1."""
 
     updated_at: datetime = Field(
-        ...,
-        alias="updatedAt",
-        description="Timestamp of last status update (ISO 8601)"
+        ..., alias="updatedAt", description="Timestamp of last status update (ISO 8601)"
     )
-    services: list[ServiceStatus] = Field(
-        ...,
-        description="List of service statuses"
-    )
+    services: list[ServiceStatus] = Field(..., description="List of service statuses")
 
-    model_config = {
-        "populate_by_name": True
-    }
+    model_config = {"populate_by_name": True}

@@ -1,10 +1,14 @@
 import time
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from axv_gw.metrics import hooks_ok, hooks_duration_ms
+
+from axv_gw.metrics import hooks_duration_ms, hooks_ok
+
 
 class HookMetricsMiddleware(BaseHTTPMiddleware):
     """Measure duration and count OKs for /hooks/*."""
+
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         if not path.startswith("/hooks/"):
