@@ -1,0 +1,39 @@
+# --- metrics guard (idempotent) ---
+from prometheus_client import Gauge, REGISTRY
+_BUILD_GAUGE = None
+def ensure_build_metric_ok():
+    global _BUILD_GAUGE
+    if _BUILD_GAUGE is not None:
+        return _BUILD_GAUGE
+    try:
+        _BUILD_GAUGE = Gauge("axv_gw_build_info", "Build info", ["version", "name"])
+    except ValueError:
+        for collector in list(REGISTRY._collector_to_names.keys()):
+            if getattr(collector, "_name", None) == "axv_gw_build_info":
+                _BUILD_GAUGE = collector
+                break
+    return _BUILD_GAUGE
+# --- end metrics guard ---
+
+from app.metrics import ensure_build_metric as get_build_gauge
+from app.metrics import ensure_build_metric as ensure_build_metric_ok
+from app.metrics import ensure_build_metric
+from fastapi import FastAPI
+
+from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST
+
+_BUILD_GAUGE = None
+# --- compat for tests: expose create_app if missing ---
+try:
+    create_app  # type: ignore[name-defined]
+except NameError:
+    def create_app():
+        # return the already-constructed FastAPI app if present
+        return globals().get("app")
+# --- end compat ---
+# --- expose module-level app for tests ---
+try:
+    app  # noqa: F401
+except NameError:
+    app = create_app()
+# --- end ---
