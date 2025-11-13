@@ -1,5 +1,7 @@
-from fastapi import FastAPI
 from time import time
+
+from fastapi import FastAPI
+
 app = FastAPI()
 @app.get("/axv/healthz")
 def healthz(): return {"ok": True}

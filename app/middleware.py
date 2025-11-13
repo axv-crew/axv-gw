@@ -4,7 +4,7 @@ import json
 import logging
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -23,13 +23,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-        
+
         # Store in request state for downstream use
         request.state.request_id = request_id
-        
+
         # Start timer
         start_time = time.time()
-        
+
         # Process request
         try:
             response = await call_next(request)
@@ -41,7 +41,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         finally:
             # Calculate duration
             duration_ms = int((time.time() - start_time) * 1000)
-            
+
             # Log in JSON format
             log_data = {
                 "ts": int(time.time()),
@@ -53,11 +53,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "ua": request.headers.get("User-Agent", ""),
                 "ip": request.client.host if request.client else "",
             }
-            
+
             # Log as JSON
             logger.info(json.dumps(log_data))
-        
+
         # Add request ID to response headers
         response.headers["X-Request-ID"] = request_id
-        
+
         return response
