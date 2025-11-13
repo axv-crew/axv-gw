@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from starlette.testclient import TestClient
+
 from axv_gw.middleware.rate_limit import RateLimitMiddleware
+
 
 def _build_app():
     app = FastAPI()
@@ -15,6 +17,7 @@ def _build_app():
 
     app.add_middleware(RateLimitMiddleware)
     return app
+
 
 def test_rate_limit_default_per_ip_path(monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_DEFAULT", "3")
@@ -33,6 +36,7 @@ def test_rate_limit_default_per_ip_path(monkeypatch):
     body = r.json()
     assert body["ok"] is False and body["error"] == "rate_limited"
     assert "retry_after_s" in body
+
 
 def test_hooks_have_stricter_limit(monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_DEFAULT", "60")

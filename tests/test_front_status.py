@@ -14,6 +14,7 @@ from app.main import create_app
 def clear_cache():
     """Clear cache before each test."""
     import app.routers.front as front_module
+
     front_module._cache = None
     front_module._cache_timestamp = None
     yield
@@ -100,13 +101,7 @@ def test_front_status_cache_ttl(tmp_path):
     stub_path = tmp_path / "status.stub.json"
     stub_data = {
         "updatedAt": "2025-11-11T16:05:00Z",
-        "services": [
-            {
-                "id": "test-service",
-                "label": "Test Service",
-                "state": "ok"
-            }
-        ]
+        "services": [{"id": "test-service", "label": "Test Service", "state": "ok"}],
     }
 
     with open(stub_path, "w") as f:
