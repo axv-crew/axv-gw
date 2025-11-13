@@ -1,44 +1,29 @@
-import logging, sys
-logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
-import os, time
-from fastapi import FastAPI, Response, Request
-from app.config import settings
-from app.routers import hooks, internal
-from app.middleware import RequestLoggingMiddleware
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-
-app = FastAPI(title="AXV Gateway", version=os.getenv("GATEWAY_VERSION", "dev"))
-app.state.started_at = time.time()
-
-# Add request logging middleware
-app.add_middleware(RequestLoggingMiddleware)
-
-@app.get("/healthz")
-def healthz():
-    return {"ok": True}
-
-@app.get("/status")
-def status(request: Request):
-    request_id = getattr(request.state, "request_id", "unknown")
-    return {
-        "now": int(time.time()),
-        "ok": True,
-        "service": "axv-gw",
-        "version": os.getenv("GATEWAY_VERSION", "dev"),
-        "uptime_s": int(time.time() - app.state.started_at),
-        "request_id": request_id,
-    }
-
-@app.get("/metrics")
-def metrics():
-    data = generate_latest()
-    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+import os
 
 # Routers
+from app.routers import front, hooks, internal
+
+# Opcjonalne logi żądań (nie wywalaj jeśli brak)
+try:
+    from app.middleware import RequestLoggingMiddleware
+except Exception:
+    RequestLoggingMiddleware = None
+
+app = FastAPI(title="AXV Gateway")
+
+# Middleware (jeśli dostępny)
+if RequestLoggingMiddleware:
+    app.add_middleware(RequestLoggingMiddleware)
+
+# Rejestracja routerów (zachowuje istniejące ścieżki: /front/status, /hooks/ping, /internal/hmac-sign)
+app.include_router(front.router)
 app.include_router(hooks.router)
 app.include_router(internal.router)
 
-# HEAD /metrics (bez body; te same nagłówki co GET)
-@app.head("/metrics")
-def metrics_head():
-    return Response(status_code=200, media_type=CONTENT_TYPE_LATEST)
+# Lekki alias /status (fallback; nie woła frontu, tylko zwraca prostą odpowiedź 200)
+@app.get("/status")
+async def status_alias():
+    version = os.getenv("GATEWAY_VERSION") or os.getenv("GW_VERSION") or os.getenv("VERSION") or "dev"
+    return JSONResponse({"ok": True, "status": {"api": "ok", "version": version}})
