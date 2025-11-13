@@ -1,4 +1,7 @@
 import logging, sys
+from axv_gw.middleware.hooks_metrics import HookMetricsMiddleware
+from axv_gw.middleware.size_guard import RequestSizeGuardMiddleware
+from axv_gw.middleware.hmac_ts import HMACTimeSkewMiddleware
 from axv_gw.middleware.rate_limit import RateLimitMiddleware
 logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 import os, time
@@ -14,6 +17,8 @@ app.state.started_at = time.time()
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(HMACTimeSkewMiddleware)
+app.add_middleware(RequestSizeGuardMiddleware)
 
 @app.get("/healthz")
 def healthz():
@@ -44,3 +49,4 @@ app.include_router(internal.router)
 @app.head("/metrics")
 def metrics_head():
     return Response(status_code=200, media_type=CONTENT_TYPE_LATEST)
+app.add_middleware(HookMetricsMiddleware)
