@@ -7,7 +7,7 @@ Run: pytest test_axv_status.py -v
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from httpx import Response, ConnectError, TimeoutException
-from axv_status_endpoint import (
+from app.axv_status_endpoint import (
     calculate_overall_status,
     check_api_health,
     check_gateway_health,
@@ -120,7 +120,7 @@ async def test_check_api_health_ok():
 @pytest.mark.asyncio
 async def test_check_gateway_health_ok():
     """Test: Gateway responds with 200"""
-    with patch("axv_status_endpoint.httpx.AsyncClient") as mock_client:
+    with patch("app.axv_status_endpoint.httpx.AsyncClient") as mock_client:
         mock_response = Response(200, json={"status": "ok"})
         mock_client.return_value.__aenter__.return_value.get = AsyncMock(
             return_value=mock_response
@@ -133,7 +133,7 @@ async def test_check_gateway_health_ok():
 @pytest.mark.asyncio
 async def test_check_gateway_health_degraded_timeout():
     """Test: Gateway timeout → degraded"""
-    with patch("axv_status_endpoint.httpx.AsyncClient") as mock_client:
+    with patch("app.axv_status_endpoint.httpx.AsyncClient") as mock_client:
         mock_client.return_value.__aenter__.return_value.get = AsyncMock(
             side_effect=TimeoutException("Timeout")
         )
@@ -145,7 +145,7 @@ async def test_check_gateway_health_degraded_timeout():
 @pytest.mark.asyncio
 async def test_check_gateway_health_down():
     """Test: Gateway connection error → down"""
-    with patch("axv_status_endpoint.httpx.AsyncClient") as mock_client:
+    with patch("app.axv_status_endpoint.httpx.AsyncClient") as mock_client:
         mock_client.return_value.__aenter__.return_value.get = AsyncMock(
             side_effect=ConnectError("Connection refused")
         )
@@ -157,7 +157,7 @@ async def test_check_gateway_health_down():
 @pytest.mark.asyncio
 async def test_check_gateway_health_server_error():
     """Test: Gateway 500 error → down"""
-    with patch("axv_status_endpoint.httpx.AsyncClient") as mock_client:
+    with patch("app.axv_status_endpoint.httpx.AsyncClient") as mock_client:
         mock_response = Response(500, json={"error": "Internal server error"})
         mock_client.return_value.__aenter__.return_value.get = AsyncMock(
             return_value=mock_response
@@ -170,7 +170,7 @@ async def test_check_gateway_health_server_error():
 @pytest.mark.asyncio
 async def test_check_n8n_health_unknown():
     """Test: n8n bez URL → unknown"""
-    with patch("axv_status_endpoint.N8N_HEALTHZ_URL", ""):
+    with patch("app.axv_status_endpoint.N8N_HEALTHZ_URL", ""):
         status = await check_n8n_health()
         assert status == "unknown"
 
@@ -189,11 +189,11 @@ async def test_check_rag_health_unknown():
 @pytest.mark.asyncio
 async def test_get_axv_status_all_ok(client):
     """Test: pełny endpoint z wszystkimi komponentami OK"""
-    with patch("axv_status_endpoint.check_api_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_gateway_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_n8n_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_rag_health", return_value="ok"), \
-         patch("axv_status_endpoint.get_nodes_status", return_value=[]):
+    with patch("app.axv_status_endpoint.check_api_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_gateway_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_n8n_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_rag_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.get_nodes_status", return_value=[]):
         
         response = client.get("/axv/status")
         
@@ -220,11 +220,11 @@ async def test_get_axv_status_all_ok(client):
 @pytest.mark.asyncio
 async def test_get_axv_status_degraded(client):
     """Test: jeden komponent degraded → ok=True, overall_status=degraded"""
-    with patch("axv_status_endpoint.check_api_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_gateway_health", return_value="degraded"), \
-         patch("axv_status_endpoint.check_n8n_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_rag_health", return_value="unknown"), \
-         patch("axv_status_endpoint.get_nodes_status", return_value=[]):
+    with patch("app.axv_status_endpoint.check_api_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_gateway_health", return_value="degraded"), \
+         patch("app.axv_status_endpoint.check_n8n_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_rag_health", return_value="unknown"), \
+         patch("app.axv_status_endpoint.get_nodes_status", return_value=[]):
         
         response = client.get("/axv/status")
         data = response.json()
@@ -237,11 +237,11 @@ async def test_get_axv_status_degraded(client):
 @pytest.mark.asyncio
 async def test_get_axv_status_down(client):
     """Test: jeden komponent down → ok=False"""
-    with patch("axv_status_endpoint.check_api_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_gateway_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_n8n_health", return_value="down"), \
-         patch("axv_status_endpoint.check_rag_health", return_value="ok"), \
-         patch("axv_status_endpoint.get_nodes_status", return_value=[]):
+    with patch("app.axv_status_endpoint.check_api_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_gateway_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_n8n_health", return_value="down"), \
+         patch("app.axv_status_endpoint.check_rag_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.get_nodes_status", return_value=[]):
         
         response = client.get("/axv/status")
         data = response.json()
@@ -274,11 +274,11 @@ async def test_get_axv_status_with_nodes(client):
         }
     ]
     
-    with patch("axv_status_endpoint.check_api_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_gateway_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_n8n_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_rag_health", return_value="ok"), \
-         patch("axv_status_endpoint.get_nodes_status", return_value=mock_nodes):
+    with patch("app.axv_status_endpoint.check_api_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_gateway_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_n8n_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_rag_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.get_nodes_status", return_value=mock_nodes):
         
         response = client.get("/axv/status")
         data = response.json()
@@ -294,11 +294,11 @@ async def test_get_axv_status_with_nodes(client):
 
 def test_response_has_required_fields(client):
     """Test: response zawiera wszystkie wymagane pola"""
-    with patch("axv_status_endpoint.check_api_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_gateway_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_n8n_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_rag_health", return_value="ok"), \
-         patch("axv_status_endpoint.get_nodes_status", return_value=[]):
+    with patch("app.axv_status_endpoint.check_api_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_gateway_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_n8n_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_rag_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.get_nodes_status", return_value=[]):
         
         response = client.get("/axv/status")
         data = response.json()
@@ -328,11 +328,11 @@ async def test_endpoint_responds_quickly(client):
     """Test: endpoint odpowiada szybko (<3s total)"""
     import time
     
-    with patch("axv_status_endpoint.check_api_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_gateway_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_n8n_health", return_value="ok"), \
-         patch("axv_status_endpoint.check_rag_health", return_value="ok"), \
-         patch("axv_status_endpoint.get_nodes_status", return_value=[]):
+    with patch("app.axv_status_endpoint.check_api_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_gateway_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_n8n_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.check_rag_health", return_value="ok"), \
+         patch("app.axv_status_endpoint.get_nodes_status", return_value=[]):
         
         start = time.time()
         response = client.get("/axv/status")
