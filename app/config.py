@@ -1,27 +1,38 @@
-"""Application configuration via environment variables."""
+# app/config.py
+"""Global settings for AXV Gateway.
 
+Ten moduł łączy:
+- stare potrzeby gateway'a (log_level itp.),
+- nowe ustawienia dla K4 AXV Status Endpoint.
+"""
+
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment."""
+    """Global settings for AXV Gateway."""
 
-    model_config = SettingsConfigDict(env_prefix="AXV_GW_")
+    # --- Logging / Environment ---
+    log_level: str = "INFO"
+    environment: str = "local"  # np. local / stage / prod
 
-    # Stub data configuration
-    stub_path: str = "app/data/status.stub.json"
+    # --- K4: AXV Status Endpoint ---
+    # URL healthz gateway'a (sam siebie)
+    gateway_healthz_url: str = "http://127.0.0.1:8000/axv/healthz"
+    # URL healthz n8n (puste = wyłączone sprawdzanie)
+    n8n_healthz_url: str = ""
+    # Timeout dla checków (sekundy)
+    healthcheck_timeout: float = 2.0
 
-    # Cache configuration
-    cache_ttl_seconds: int = 60
-
-    # External call configuration
-    request_timeout_seconds: float = 2.0
-    request_max_retries: int = 1
-
-    # Server configuration
-    host: str = "0.0.0.0"
-    port: int = 8000
-    log_level: str = "info"
+    model_config = SettingsConfigDict(
+        env_prefix="AXV_",          # AXV_GW_HEALTHZ_URL itd.
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
+# Instancja używana w całej appce
 settings = Settings()
