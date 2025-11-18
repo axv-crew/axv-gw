@@ -1,5 +1,6 @@
 """FastAPI application factory and configuration."""
 
+import os
 import json
 import logging
 import sys
@@ -11,6 +12,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_l
 
 from app.config import settings
 from app.routers import front, healthz
+
+from app.axv_status_endpoint import router as axv_status_router, configure_status_endpoint
 
 
 class JSONFormatter(logging.Formatter):
@@ -77,6 +80,15 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # --- K4.1: AXV Status Endpoint config ---
+    status_config = {
+        "gateway_healthz_url": settings.gateway_healthz_url,
+        "n8n_healthz_url": settings.n8n_healthz_url,
+        "healthcheck_timeout": settings.healthcheck_timeout,
+    }
+    configure_status_endpoint(app, status_config)
+    app.include_router(axv_status_router)
 
     # Include routers
     app.include_router(healthz.router, tags=["health"])
