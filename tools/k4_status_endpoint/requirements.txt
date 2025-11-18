@@ -26,3 +26,4 @@ redis==5.0.1
 
 # Utilities
 python-dotenv==1.0.0
+pydantic-settings==2.12.0
